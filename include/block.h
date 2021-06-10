@@ -27,8 +27,8 @@ struct BlockController
 struct BlockController controller;
 
 void controllerInit(char *);
-void readBlock(struct Block *, int);
-void writeBlock(const struct Block *, int);
+void readBlock(char *, int);
+void writeBlock(const char *, int);
 void flushBlock(int);
 int allocBlock();
 void releaseBlock(int);

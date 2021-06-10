@@ -13,10 +13,10 @@ void controllerInit(char *path)
     char newpath[220];
     int ll = strlen(path);
     memcpy(newpath, path, ll);
-    newpath[ll] = 'd';
-    newpath[ll + 1] = 'a';
-    newpath[ll + 2] = 't';
-    newpath[ll + 3] = 'a';
+    newpath[ll] = '/';
+    newpath[ll + 1] = 'd';
+    newpath[ll + 2] = 'a';
+    newpath[ll + 3] = 't';
     newpath[ll + 4] = 0;
     ll += 4;
     printf("File System on %s\n", newpath);
@@ -51,14 +51,14 @@ void controllerInit(char *path)
     }
 }
 
-void readBlock(struct Block *blk, int blk_num)
+void readBlock(char *blk, int blk_num)
 {
-    memcpy(blk->data, controller.data + (blk_num * BLOCK_SIZE), BLOCK_SIZE);
+    memcpy(blk, controller.data + (blk_num * BLOCK_SIZE), BLOCK_SIZE);
 }
 
-void writeBlock(const struct Block *blk, int blk_num)
+void writeBlock(const char *blk, int blk_num)
 {
-    memcpy(controller.data + (blk_num * BLOCK_SIZE), blk->data, BLOCK_SIZE);
+    memcpy(controller.data + (blk_num * BLOCK_SIZE), blk, BLOCK_SIZE);
 }
 
 void flushBlock(int blk_num)
@@ -68,10 +68,12 @@ void flushBlock(int blk_num)
 
 int allocBlock()
 {
+    if(controller.head == controller.tail)reportError("not enough block");
     int res = controller.head->num;
     struct List *ptr = controller.head;
     controller.head = controller.head->nxt;
     free(ptr);
+    return res;
 }
 
 void releaseBlock(int blk_num)
