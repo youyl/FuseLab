@@ -13,4 +13,4 @@ utiltest:
 	gcc src/test.c block.o cache.o inode.o interface.o -o utiltest -D_FILE_OFFSET_BITS=64 -lfuse -Wall 
 
 clean:
-	rm *.o fuselab utiltest single_thread_test multi_thread_test
+	rm *.o fuselab utiltest test/dat single_thread_test multi_thread_test

@@ -32,6 +32,13 @@ void validBlock(int blk_num)
     globalcache.dirty[hashval] = false;
 }
 
+void setDirty(int blk_num)
+{
+    int hashval = getHash(blk_num);
+    if(globalcache.idx[hashval] != blk_num)return;
+    globalcache.dirty[hashval] = true;
+}
+
 void flushAllCache()
 {
     for (int i = 0; i < CACHE_SIZE; i++)

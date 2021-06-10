@@ -20,5 +20,6 @@ void cacheInit();
 void flushCache(int);
 void validBlock(int);
 void flushAllCache();
+void setDirty(int);
 
 #endif

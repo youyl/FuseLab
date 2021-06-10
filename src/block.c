@@ -27,7 +27,7 @@ void controllerInit(char *path)
     if(fd < 0 && errno == ENOENT)
     {
         fd = open(newpath, O_RDWR | O_CREAT, 0644);
-        if(fd < 0)reportError("file creation failed\n");
+        if(fd < 0)reportError("file creation failed");
         if(posix_fallocate(fd, 0, BLOCK_SIZE * MAX_BLOCK_NUM) != 0)reportError("not enough room");
         created = true;
     }
@@ -58,6 +58,7 @@ void readBlock(char *blk, int blk_num)
 
 void writeBlock(const char *blk, int blk_num)
 {
+    printf("%s\n", blk);
     memcpy(controller.data + (blk_num * BLOCK_SIZE), blk, BLOCK_SIZE);
 }
 
