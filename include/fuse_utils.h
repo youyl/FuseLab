@@ -1,0 +1,9 @@
+#include <fuse.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <stddef.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <pthread.h>
