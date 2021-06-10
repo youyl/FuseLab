@@ -2,6 +2,10 @@
 #define FS_INODE
 
 #include "cache.h"
-#include "fuse_utils.h"
+
+struct Inode
+{
+    int type;
+};
 
 #endif
