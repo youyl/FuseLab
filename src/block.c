@@ -35,20 +35,6 @@ void controllerInit(char *path)
     if(ptr == MAP_FAILED)reportError("mmap failed");
     if(created)memset(ptr, 0, BLOCK_SIZE * MAX_BLOCK_NUM);
     controller.data = ptr;
-
-    // block init
-    controller.head = (struct List *)malloc(sizeof(struct List));
-    controller.head->num = 0;
-    controller.head->nxt = NULL;
-    struct List *cur = controller.head;
-    for (int i = 1; i < MAX_BLOCK_NUM; i++)
-    {
-        cur->nxt = (struct List *)malloc(sizeof(struct List));
-        cur->nxt->num = i;
-        cur->nxt->nxt = NULL;
-        controller.tail = cur;
-        cur = cur->nxt;
-    }
 }
 
 void readBlock(char *blk, int blk_num)
@@ -58,29 +44,7 @@ void readBlock(char *blk, int blk_num)
 
 void writeBlock(const char *blk, int blk_num)
 {
-    printf("%s\n", blk);
     memcpy(controller.data + (blk_num * BLOCK_SIZE), blk, BLOCK_SIZE);
-}
-
-void flushBlock(int blk_num)
-{
     msync(controller.data + (blk_num * BLOCK_SIZE), BLOCK_SIZE, MS_SYNC);
 }
 
-int allocBlock()
-{
-    if(controller.head == controller.tail)reportError("not enough block");
-    int res = controller.head->num;
-    struct List *ptr = controller.head;
-    controller.head = controller.head->nxt;
-    free(ptr);
-    return res;
-}
-
-void releaseBlock(int blk_num)
-{
-    controller.tail->nxt = (struct List *)malloc(sizeof(struct List));
-    controller.tail = controller.tail->nxt;
-    controller.tail->num = blk_num;
-    controller.tail->nxt = NULL;
-}

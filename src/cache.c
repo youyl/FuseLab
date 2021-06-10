@@ -49,3 +49,18 @@ void flushAllCache()
         }
     }
 }
+
+void getBlock(struct Block *blk, int blk_num)
+{
+    int hashval = getHash(blk_num);
+    validBlock(blk_num);
+    memcpy(blk->data, globalcache.data[hashval], BLOCK_SIZE);
+}
+
+void putBlock(const struct Block *blk, int blk_num)
+{
+    int hashval = getHash(blk_num);
+    validBlock(blk_num);
+    memcpy(globalcache.data[hashval], blk->data, BLOCK_SIZE);
+    globalcache.dirty[hashval] = true;
+}

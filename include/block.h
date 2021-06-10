@@ -3,25 +3,17 @@
 
 #include "fuse_utils.h"
 
-#define BLOCK_SIZE 512
-#define MAX_BLOCK_NUM 1048576
+#define BLOCK_SIZE 512u
+#define MAX_BLOCK_NUM 8388608u
 
 struct Block
 {
     char data[BLOCK_SIZE];
 };
 
-struct List
-{
-    int num;
-    struct List *nxt;
-};
-
 struct BlockController
 {
     char *data;
-    struct List *head;
-    struct List *tail;
 };
 
 struct BlockController controller;
@@ -29,10 +21,6 @@ struct BlockController controller;
 void controllerInit(char *);
 void readBlock(char *, int);
 void writeBlock(const char *, int);
-void flushBlock(int);
-int allocBlock();
-void releaseBlock(int);
-
 
 void reportError(char *);
 
