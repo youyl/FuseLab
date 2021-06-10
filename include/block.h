@@ -11,13 +11,29 @@ struct Block
     char data[BLOCK_SIZE];
 };
 
-struct BlockController
+struct List
 {
-    char data[BLOCK_SIZE * MAX_BLOCK_NUM];
+    int num;
+    struct List *nxt;
 };
 
-//void controller_init(struct BlockController*);
-//void read_block(struct Block*, const struct BlockController*, int);
-//void write_block(const struct Block*, int);
+struct BlockController
+{
+    char *data;
+    struct List *head;
+    struct List *tail;
+};
+
+struct BlockController controller;
+
+void controllerInit(char *);
+void readBlock(struct Block *, int);
+void writeBlock(const struct Block *, int);
+void flushBlock(int);
+int allocBlock();
+void releaseBlock(int);
+
+
+void reportError(char *);
 
 #endif

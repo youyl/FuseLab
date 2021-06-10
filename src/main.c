@@ -22,5 +22,6 @@ static struct fuse_operations fuse_operations = {
 
 int main(int argc, char *argv[])
 {
+  if(argc != 2)reportError("wrong parameters");
   return fuse_main(argc, argv, &fuse_operations, NULL);
 }

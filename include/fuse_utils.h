@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <stddef.h>
 #include <string.h>
 #include <stdbool.h>
@@ -14,6 +15,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <dirent.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 
 #endif

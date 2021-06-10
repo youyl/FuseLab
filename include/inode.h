@@ -6,6 +6,10 @@
 struct Inode
 {
     int type;
+    int baseblk;
+    int offset;
 };
+
+void stepForward(struct Inode *, int);
 
 #endif
