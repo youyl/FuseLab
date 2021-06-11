@@ -4,6 +4,8 @@ char s[20] = "0123456789";
 
 int main(int argc, char *argv[])
 {
+    long a;
+    printf("long size %d\n",sizeof(a));
     controllerInit("test");
     cacheInit();
     validBlock(1);

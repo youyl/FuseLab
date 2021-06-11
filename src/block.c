@@ -6,6 +6,22 @@ void reportError(char *str)
     exit(0);
 }
 
+int getBit(const struct Block *blk, int pos)
+{
+    if(((blk->data[pos >> 3]) & (1 << (pos & 7))) != 0)return 1;
+    return 0;
+}
+
+void setBit(struct Block *blk, int pos)
+{
+    blk->data[pos >> 3] |= (1 << (pos & 7));
+}
+
+void resetBit(struct Block *blk, int pos)
+{
+    if(((blk->data[pos >> 3]) & (1 << (pos & 7))) != 0)blk->data[pos >> 3] -= (1 << (pos & 7));
+}
+
 void controllerInit(char *path)
 {
     // create filename
@@ -23,17 +39,17 @@ void controllerInit(char *path)
 
     // file creation
     int fd = open(newpath, O_RDWR, 0644);
-    bool created = false;
+    controller.created = false;
     if(fd < 0 && errno == ENOENT)
     {
         fd = open(newpath, O_RDWR | O_CREAT, 0644);
         if(fd < 0)reportError("file creation failed");
         if(posix_fallocate(fd, 0, BLOCK_SIZE * MAX_BLOCK_NUM) != 0)reportError("not enough room");
-        created = true;
+        controller.created = true;
     }
     void *ptr = mmap(NULL, BLOCK_SIZE * MAX_BLOCK_NUM, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if(ptr == MAP_FAILED)reportError("mmap failed");
-    if(created)memset(ptr, 0, BLOCK_SIZE * MAX_BLOCK_NUM);
+    if(controller.created)memset(ptr, 0, BLOCK_SIZE * MAX_BLOCK_NUM);
     controller.data = ptr;
 }
 
