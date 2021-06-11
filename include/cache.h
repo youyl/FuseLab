@@ -19,8 +19,6 @@ int getHash(int);
 void cacheInit();
 void flushCache(int);
 void validBlock(int);
-void flushAllCache();
-void setDirty(int);
 void getBlock(struct Block *, int);
 void putBlock(const struct Block *, int);
 

@@ -21,19 +21,20 @@ block 4096+: data block
 #define ROOTDIR_BLK 4096
 /*
 total block 4096*2048, 2**12*2**11, 23bit
-dir block: type mode nlink size time 4 + 4 + 4 + 4 + 8 = 24 
-file block: type mode nlink size time 4 + 4 + 4 + 4 + 8 = 24
-+ idx 488 rem = 122 block
+dir block: type mode nlink size time 4 + 4 + 4 + 4 + 8 + 8 = 32
+file block: type mode nlink size time 4 + 4 + 4 + 4 + 8 + 8 = 32
++ idx 480 rem = 120 block
 secondary index 32 * 128 = 128 blocks
 */
 #define INDEX_BLOCK_COUNT 1024
-#define SECONDARY_INDEX_COUNT 122
+#define SECONDARY_INDEX_COUNT 120
 #define FILE_TYPE_OFFSET 0
 #define FILE_MODE_OFFSET 1
 #define FILE_NLINK_OFFSET 2
 #define FILE_SIZE_OFFSET 3
-#define FILE_TIME_OFFSET 4
-#define FILE_INDEX_OFFSET 6
+// time is 0, 1, 2, 3  (2, 3)
+#define FILE_TIME_OFFSET 2
+#define FILE_INDEX_OFFSET 8
 /*
 dir data: name block 4 entry per block
 dir: not 2 level
@@ -77,7 +78,6 @@ int allocBlock();
 void releaseBlock(int);
 void inodeInit();
 void updateTimeInode(struct Inode *);
-// void updateNlinkInode(struct Inode *, int);
 void updateModeInode(struct Inode *, int);
 void updateNlinkInode(struct Inode *, int);
 void updateSizInode(struct Inode *, int);

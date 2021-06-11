@@ -84,7 +84,7 @@ int my_read(const char *path, char *buf, size_t sz, off_t offset, struct fuse_fi
     {
         blocksiz = BLOCK_SIZE - blockstart;
         if(blocksiz > remlength)blocksiz = remlength;
-        int curblk = locateBlock(&(inodelist[res].siz), offset);
+        int curblk = locateBlock(&(inodelist[res]), offset);
         blockstart = 0;
         remlength -= blocksiz;
         offset += blocksiz;
@@ -128,7 +128,7 @@ int my_write(const char *path, const char *data, size_t sz, off_t offset, struct
     {
         blocksiz = BLOCK_SIZE - blockstart;
         if(blocksiz > remlength)blocksiz = remlength;
-        int curblk = locateBlock(&(inodelist[res].siz), offset);
+        int curblk = locateBlock(&(inodelist[res]), offset);
         blockstart = 0;
         remlength -= blocksiz;
         offset += blocksiz;
@@ -262,7 +262,7 @@ int my_rename(const char *oldname, const char *newname)
     int res = my_link(oldname, newname);
     if(res < 0)return res;
     // unlink old name
-    int res = my_unlink(oldname);
+    res = my_unlink(oldname);
     if(res < 0)return res;
     return 0;
 }
@@ -338,7 +338,7 @@ int my_rmdir(const char *path)
 
 int my_release(const char *path, struct fuse_file_info *fi)
 {
-    printf("Fuse syscall: release: %d\n", fi->fh);
+    printf("Fuse syscall: release: %ld\n", fi->fh);
     // flush
     if(fi == NULL)return -ENOENT;
     if(fi->fh < 3)return -EBADFD;
@@ -443,7 +443,7 @@ int my_link(const char *frompath, const char *topath) // from is existed
     if(res < 0)return res;
     if(inodelist[res].type != DIR_INODE_TYPE)return -ENOTDIR;
     // add dirent
-    int res = newDirent(&(inodelist[res]), name, fromtype, frommode, fromblk);
+    res = newDirent(&(inodelist[res]), name, fromtype, frommode, fromblk);
     if(res < 0)return res;
     // add nlink
     updateNlinkInode(&(inodelist[fromres]), fromnlink + 1);

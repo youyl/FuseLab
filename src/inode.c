@@ -405,5 +405,10 @@ void decreasenNlink(int inodeidx)
     // check nlink, if 0 delete, else decrease nlink
     if(inodelist[inodeidx].nlink == 1)releaseInode(inodeidx);
     else
-    {}
+    {
+        int decreasednlink = inodelist[inodeidx].nlink - 1;
+        updateNlinkInode(&(inodelist[inodeidx]), decreasednlink);
+        putBlock(&(inodelist[inodeidx].baseblk), inodelist[inodeidx].baseblknum);
+        flushCache(inodelist[inodeidx].baseblknum);
+    }
 }
