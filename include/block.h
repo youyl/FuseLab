@@ -1,7 +1,7 @@
 #ifndef FS_BLOCK
 #define FS_BLOCK
 
-#include "log.h"
+#include "fuse_utils.h"
 
 #define BLOCK_SIZE 512u
 #define MAX_BLOCK_NUM 4194304u

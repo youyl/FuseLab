@@ -48,6 +48,10 @@ int createInode(struct Inode *inode, int type, int mode)
     int *ptr = (int *)(inode->baseblk.data);
     ptr[FILE_TYPE_OFFSET] = type;
     updateModeInode(inode, mode);
+    if(type == DIR_INODE_TYPE)updateSizInode(inode, 4096);
+    else updateSizInode(inode, 0);
+    if(type == DIR_INODE_TYPE)updateNlinkInode(inode, 2);
+    else updateNlinkInode(inode, 1);
     updateTimeInode(inode);
     putBlock(&(inode->baseblk), inode->baseblknum);
     flushCache(inode->baseblknum);
@@ -90,6 +94,20 @@ void updateModeInode(struct Inode *inode, int mode)
     ptr[FILE_MODE_OFFSET] = mode;
 }
 
+void updateNlinkInode(struct Inode *inode, int nlink)
+{
+    inode->nlink = nlink;
+    int *ptr = (int *)(inode->baseblk.data);
+    ptr[FILE_NLINK_OFFSET] = nlink;
+}
+
+void updateSizInode(struct Inode *inode, int siz)
+{
+    inode->siz = siz;
+    int *ptr = (int *)(inode->baseblk.data);
+    ptr[FILE_SIZE_OFFSET] = siz;
+}
+
 // get one inode from the blocknum, not check if existed, not to use by upper level
 void retrieveInode(struct Inode *inode, int blk_num)
 {
@@ -117,6 +135,9 @@ int putInodetoList(int blk_num)
     for (int i = 0; i < inodecnt; i++)
     {
         if(inodelist[i].baseblknum == blk_num)return i;
+    }
+    for (int i = 0; i < inodecnt; i++)
+    {
         if(inodelist[i].baseblknum == 0)
         {
             retrieveInode(&(inodelist[i]), blk_num);
@@ -261,11 +282,13 @@ int newBlock(struct Inode *inode)
         setIndex(inode, res + 1, val);
         res++;
         inner = 0;
+        inode->blkcnt++;
     }
     // new block (res, inner)
     int tmp = allocBlock();
     if(tmp < 0)return tmp;
     setSecondaryIndex(inode, res, inner, tmp);
+    inode->blkcnt++;
     return tmp;
 }
 
@@ -281,7 +304,9 @@ int newDirent(struct Inode *inode, const char *name, int type, int mode, int lin
     if(strlen(name) > NAME_LENGTH_LIMIT)return -ENAMETOOLONG;
     if(link < 0)
     {
-        link = createInode(&(inodelist[inodecnt]), type, mode);
+        int res = createInode(&(inodelist[inodecnt]), type, mode);
+        if(res < 0)return res;
+        link = inodelist[inodecnt].baseblknum;
         inodecnt++;
     }
     int res = -1;
@@ -314,10 +339,12 @@ int newDirent(struct Inode *inode, const char *name, int type, int mode, int lin
         setIndex(inode, res + 1, val);
         res++;
         inner = 0;
+        inode->blkcnt++;
     }
     // new block (res, inner)
     int *ptr = (int *)(inode->indexblk[res].data);
     ptr[inner * DIRENT_SIZE + DIRENT_BLKNUM_OFFSET] = link;
+    memset(ptr + (inner * DIRENT_SIZE), 0, NAME_LENGTH_LIMIT + 1);
     memcpy(ptr + (inner * DIRENT_SIZE), name, strlen(name));
     putBlock(&(inode->indexblk[res]), inode->indexblkidx[res]);
     flushCache(inode->indexblkidx[res]);
@@ -371,4 +398,12 @@ void releaseBlock(int blk_num)
         putBlock(&(bitmap.zeroblk), 0);
         flushCache(0);
     }
+}
+
+void decreasenNlink(int inodeidx)
+{
+    // check nlink, if 0 delete, else decrease nlink
+    if(inodelist[inodeidx].nlink == 1)releaseInode(inodeidx);
+    else
+    {}
 }

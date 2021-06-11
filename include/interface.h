@@ -5,6 +5,14 @@
 
 // organize fd
 // inode ref cnt
+#define MAX_FD_COUNT 8192
+
+int fd2inode[MAX_FD_COUNT];
+int fdflag[MAX_FD_COUNT];
+int fdcnt;
+
+void interfaceInit();
+int getFD(int, int);
 
 int my_open(const char *, struct fuse_file_info *);
 int my_create(const char *, mode_t, struct fuse_file_info *);
@@ -18,11 +26,7 @@ int my_rename(const char *, const char *);
 int my_chmod(const char *, mode_t);
 int my_rmdir(const char *);
 int my_release(const char *, struct fuse_file_info *);
-
-// optional
-// int my_readlink(const char *, char *, size_t);
-// int my_symlink(const char *, const char *);
 int my_unlink(const char *);
-// int my_link(const char *, const char *);
+int my_link(const char *, const char *);
 
 #endif

@@ -6,6 +6,7 @@ int main(int argc, char *argv[])
 {
     long a;
     printf("long size %d\n",sizeof(a));
+    /*
     controllerInit("test");
     cacheInit();
     validBlock(1);
@@ -13,5 +14,8 @@ int main(int argc, char *argv[])
     memcpy(globalcache.data[1], s, 12);
     setDirty(1);
     flushCache(1);
+    */
+    int x = open("/tmp/fs/file", O_RDWR, 0644);
+    printf("%d %d\n",x,errno);
     return 0;
 }

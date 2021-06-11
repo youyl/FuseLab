@@ -79,6 +79,8 @@ void inodeInit();
 void updateTimeInode(struct Inode *);
 // void updateNlinkInode(struct Inode *, int);
 void updateModeInode(struct Inode *, int);
+void updateNlinkInode(struct Inode *, int);
+void updateSizInode(struct Inode *, int);
 void retrieveInode(struct Inode *, int);
 int searchDir(const struct Inode *, const char *);
 int findInode(const struct Inode *, const char *);
@@ -101,5 +103,6 @@ int putInodetoList(int);
 
 void flushInode(const struct Inode *);
 void releaseInode(int);
+void decreasenNlink(int);
 
 #endif

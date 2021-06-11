@@ -13,15 +13,16 @@ static struct fuse_operations fuse_operations = {
   .rename = my_rename,
   .release = my_release,
   .rmdir = my_rmdir,
-  // optional below
-  // .link = my_link,
-  // .unlink = my_unlink,
-  // .symlink = my_symlink,
-  // .readlink = my_readlink,
+  .link = my_link,
+   .unlink = my_unlink,
 };
 
 int main(int argc, char *argv[])
 {
-  if(argc != 3)reportError("wrong parameters, please use '-s pathname'");
+  controllerInit(argv[5]);
+  cacheInit();
+  inodeInit();
+  interfaceInit();
+  if(argc != 6)reportError("wrong parameters, please use '-s -f -o nonempty pathname'");
   return fuse_main(argc, argv, &fuse_operations, NULL);
 }
