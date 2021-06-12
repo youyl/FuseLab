@@ -21,20 +21,22 @@ block 4096+: data block
 #define ROOTDIR_BLK 4096
 /*
 total block 4096*2048, 2**12*2**11, 23bit
-dir block: type mode nlink size time 4 + 4 + 4 + 4 + 8 + 8 = 32
-file block: type mode nlink size time 4 + 4 + 4 + 4 + 8 + 8 = 32
-+ idx 480 rem = 120 block
+dir block: type mode nlink size time uid gid 4 + 4 + 4 + 4 + 8 + 8 + 4 + 4 = 40
+file block: type mode nlink size time uid gid 4 + 4 + 4 + 4 + 8 + 8 + 4 + 4 = 40
++ idx 472 rem = 118 block
 secondary index 32 * 128 = 128 blocks
 */
 #define INDEX_BLOCK_COUNT 1024
-#define SECONDARY_INDEX_COUNT 120
+#define SECONDARY_INDEX_COUNT 118
 #define FILE_TYPE_OFFSET 0
 #define FILE_MODE_OFFSET 1
 #define FILE_NLINK_OFFSET 2
 #define FILE_SIZE_OFFSET 3
 // time is 0, 1, 2, 3  (2, 3)
 #define FILE_TIME_OFFSET 2
-#define FILE_INDEX_OFFSET 8
+#define FILE_UID_OFFSET 8
+#define FILE_GID_OFFSET 9
+#define FILE_INDEX_OFFSET 10
 /*
 dir data: name block 4 entry per block
 dir: not 2 level
@@ -68,6 +70,8 @@ struct Inode
     struct Block indexblk[SECONDARY_INDEX_COUNT];
     int siz;
     int blkcnt;
+    int uid;
+    int gid;
 };
 
 struct SuperBlock bitmap;
@@ -104,5 +108,8 @@ int putInodetoList(int);
 void flushInode(const struct Inode *);
 void releaseInode(int);
 void decreasenNlink(int);
+
+bool checkAuthority(const struct Inode *,bool);
+void updateUserInode(struct Inode *);
 
 #endif

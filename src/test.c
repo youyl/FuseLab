@@ -52,7 +52,7 @@ void large_file_test()
 {
     rename("/tmp/fs/name_dir_1/file", "/tmp/fs/name_dir_2/file");
     int fd = open("/tmp/fs/large_file", O_CREAT | O_RDWR, 0755);
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 512; i++)
     {
         write(fd, s, 10);
     }
@@ -60,7 +60,16 @@ void large_file_test()
 }
 
 void authority_test()
-{}
+{
+    int fd = open("/tmp/fs/file_auth", O_CREAT | O_RDWR, 0444);
+    int res = write(fd, s, 10);
+    printf("auth_test(ouid) res = %d\n", res);
+    close(fd);
+    fd = open("/tmp/fs/file_auth_all", O_CREAT | O_RDWR, 0644);
+    res = write(fd, s, 10);
+    printf("auth_test(ouid) res = %d\n", res);
+    close(fd);
+}
 
 int main(int argc, char *argv[])
 {
@@ -70,6 +79,6 @@ int main(int argc, char *argv[])
     link_unlink_test(); printf("link_unlink_test over\n");
     rename_test(); printf("rename_test over\n");
     large_file_test(); printf("large_file_test over\n");
-    // authority_test(); printf("authority_test over\n");
+    authority_test(); printf("authority_test over\n");
     return 0;
 }

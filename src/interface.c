@@ -78,6 +78,7 @@ int my_read(const char *path, char *buf, size_t sz, off_t offset, struct fuse_fi
     else res = findInode(&(inodelist[ROOTDIR_IDX]), path);
     if(res < 0)return res;
     if(inodelist[res].type == DIR_INODE_TYPE)return -EISDIR;
+    if(!checkAuthority(&(inodelist[res]), true))return -EPERM;
     // read like send packet
     if(sz + offset > inodelist[res].siz)sz = inodelist[res].siz - offset;
     int remlength = sz;
@@ -122,6 +123,7 @@ int my_write(const char *path, const char *data, size_t sz, off_t offset, struct
     printf("write: find inode: %d\n",res);
     if(res < 0)return res;
     if(inodelist[res].type == DIR_INODE_TYPE)return -EISDIR;
+    if(!checkAuthority(&(inodelist[res]), false))return -EPERM;
     // update sz
     int newsz = offset + sz;
     while (newsz > inodelist[res].blkcnt * BLOCK_SIZE)newBlock(&(inodelist[res]));
@@ -192,6 +194,9 @@ int my_getattr(const char *path, struct stat *st)
     // printf("getattr: gettime: %ld %ld\n",inodelist[res].timec.tv_sec, inodelist[res].timec.tv_nsec);
     // siz
     st->st_size = inodelist[res].siz;
+    // user
+    st->st_uid = inodelist[res].uid;
+    st->st_gid = inodelist[res].gid;
     return 0;
 }
 

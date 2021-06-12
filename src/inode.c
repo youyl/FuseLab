@@ -54,6 +54,7 @@ int createInode(struct Inode *inode, int type, int mode)
     if(type == DIR_INODE_TYPE)updateNlinkInode(inode, 2);
     else updateNlinkInode(inode, 1);
     updateTimeInode(inode);
+    updateUserInode(inode);
     putBlock(&(inode->baseblk), inode->baseblknum);
     flushCache(inode->baseblknum);
     return 0;
@@ -124,6 +125,8 @@ void retrieveInode(struct Inode *inode, int blk_num)
     inode->mode = ptr[FILE_MODE_OFFSET];
     inode->siz = ptr[FILE_SIZE_OFFSET];
     inode->nlink = ptr[FILE_NLINK_OFFSET];
+    inode->uid = ptr[FILE_UID_OFFSET];
+    inode->gid = ptr[FILE_GID_OFFSET];
     inode->blkcnt = 0;
     // get idx
     memset(inode->indexblkidx, 0, SECONDARY_INDEX_COUNT * 4);
@@ -430,4 +433,65 @@ void decreasenNlink(int inodeidx)
         putBlock(&(inodelist[inodeidx].baseblk), inodelist[inodeidx].baseblknum);
         flushCache(inodelist[inodeidx].baseblknum);
     }
+}
+
+bool checkAuthority(const struct Inode *inode, bool isread)
+{
+    int uid = geteuid();
+    int gid = getegid();
+    printf("%d %d %d %d\n",inode->uid, inode->gid, uid, gid);
+    // root
+    if(uid == 0 || gid == 0)return true;
+    if(uid == inode->uid)
+    {
+        // owner
+        if(isread)
+        {
+            if(((inode->mode) & 0400) != 0)return true;
+            else return false;
+        }
+        else
+        {
+            if(((inode->mode) & 0200) != 0)return true;
+            else return false;
+        }
+    }
+    else if(gid == inode->gid)
+    {
+        // group user
+        if(isread)
+        {
+            if(((inode->mode) & 040) != 0)return true;
+            else return false;
+        }
+        else
+        {
+            if(((inode->mode) & 020) != 0)return true;
+            else return false;
+        }
+    }
+    else
+    {
+        // other
+        if(isread)
+        {
+            if(((inode->mode) & 04) != 0)return true;
+            else return false;
+        }
+        else
+        {
+            if(((inode->mode) & 02) != 0)return true;
+            else return false;
+        }
+    }
+    return false;
+}
+
+void updateUserInode(struct Inode *inode)
+{
+    inode->uid = geteuid();
+    inode->gid = getegid();
+    int *ptr = (int *)(inode->baseblk.data);
+    ptr[FILE_UID_OFFSET] = inode->uid;
+    ptr[FILE_GID_OFFSET] = inode->gid;
 }

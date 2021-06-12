@@ -19,10 +19,9 @@ static struct fuse_operations fuse_operations = {
 
 int main(int argc, char *argv[])
 {
-  controllerInit(argv[5]);
+  controllerInit(argv[1]);
   cacheInit();
   inodeInit();
   interfaceInit();
-  if(argc != 6)reportError("wrong parameters, please use '-s -f -o nonempty pathname'");
   return fuse_main(argc, argv, &fuse_operations, NULL);
 }
