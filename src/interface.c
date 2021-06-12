@@ -19,12 +19,12 @@ int my_open(const char *path, struct fuse_file_info *fi)
     if(strlen(path) > PATH_LENGTH_LIMIT)return -ENAMETOOLONG;
     printf("Fuse syscall: open: %s\n",path);
     int res = findInode(&(inodelist[ROOTDIR_IDX]), path);
-    printf("find Inode res: %d\n",res);
+    // printf("find Inode res: %d\n",res);
     if(res < 0)return res;
     if(inodelist[res].type == DIR_INODE_TYPE)return -EISDIR;
     fi->fh = getFD(inodelist[res].baseblknum, fi->flags);
     printf("opened success, return fd = %ld\n",fi->fh);
-    return fi->fh;
+    return 0;
 }
 
 int my_create(const char *path, mode_t md, struct fuse_file_info *fi)
@@ -33,7 +33,7 @@ int my_create(const char *path, mode_t md, struct fuse_file_info *fi)
     printf("Fuse syscall: create: %s\n",path);
     // try to open exist
     int res = findInode(&(inodelist[ROOTDIR_IDX]), path);
-    printf("find Inode res: %d\n",res);
+    // printf("find Inode res: %d\n",res);
     if(res >= 0)printf("already exist, call my_open\n");
     if(res < 0 && res != -ENOENT)return res;
     if(res >= 0)return my_open(path, fi);
@@ -51,10 +51,10 @@ int my_create(const char *path, mode_t md, struct fuse_file_info *fi)
     char name[200];
     memset(name, 0, 200);
     memcpy(name, path + tail + 1, strlen(path) - tail -1);
-    printf("get newpath and name: %s, %s\n",newpath, name);
+    // printf("get newpath and name: %s, %s\n",newpath, name);
     // find new path
     res = findInode(&(inodelist[ROOTDIR_IDX]), newpath);
-    printf("find father Inode res: %d\n",res);
+    // printf("find father Inode res: %d\n",res);
     if(res < 0)return res;
     // add dirent
     if(inodelist[res].type != DIR_INODE_TYPE)return -ENOTDIR;
@@ -89,13 +89,17 @@ int my_read(const char *path, char *buf, size_t sz, off_t offset, struct fuse_fi
         blocksiz = BLOCK_SIZE - blockstart;
         if(blocksiz > remlength)blocksiz = remlength;
         int curblk = locateBlock(&(inodelist[res]), offset);
+        struct Block thisblk;
+        // printf("read: read by send packet: blockstart = %d blocksiz = %d curblk = %d\n",blockstart, blocksiz, curblk);
+        getBlock(&thisblk, curblk);
+        // printf("%s\n", thisblk.data);
+        memcpy(buf + curptr, thisblk.data + blockstart, blocksiz);
+        curptr += blocksiz;
         blockstart = 0;
         remlength -= blocksiz;
         offset += blocksiz;
-        struct Block thisblk;
-        getBlock(&thisblk, curblk);
-        memcpy(buf + curptr, thisblk.data + blockstart, blocksiz);
     }
+    printf("read: result: %ld %s\n",sz, buf);
     updateTimeInode(&(inodelist[res]));
     putBlock(&(inodelist[res].baseblk), inodelist[res].baseblknum);
     flushCache(inodelist[res].baseblknum);
@@ -105,7 +109,7 @@ int my_read(const char *path, char *buf, size_t sz, off_t offset, struct fuse_fi
 int my_write(const char *path, const char *data, size_t sz, off_t offset, struct fuse_file_info *fi)
 {
     if(fi == NULL)if(strlen(path) > PATH_LENGTH_LIMIT)return -ENAMETOOLONG;
-    printf("Fuse syscall: write: %s\n",path);
+    printf("Fuse syscall: write: %s %ld %ld\n",path,sz,offset);
     // check can write (fi)
     int blk = -1, res = -ENOENT;
     if(fi != NULL)
@@ -115,11 +119,12 @@ int my_write(const char *path, const char *data, size_t sz, off_t offset, struct
         res = putInodetoList(blk);
     }
     else res = findInode(&(inodelist[ROOTDIR_IDX]), path);
+    printf("write: find inode: %d\n",res);
     if(res < 0)return res;
     if(inodelist[res].type == DIR_INODE_TYPE)return -EISDIR;
     // update sz
     int newsz = offset + sz;
-    while (newsz < inodelist[res].blkcnt * BLOCK_SIZE)newBlock(&(inodelist[res]));
+    while (newsz > inodelist[res].blkcnt * BLOCK_SIZE)newBlock(&(inodelist[res]));
     if(inodelist[res].siz < newsz)
     {
         updateSizInode(&(inodelist[res]), newsz);
@@ -127,6 +132,7 @@ int my_write(const char *path, const char *data, size_t sz, off_t offset, struct
         flushCache(inodelist[res].baseblknum);
     }
     // write like send packet
+    printf("write: size after expansion: %d\n",inodelist[res].siz);
     int remlength = sz;
     int blockstart = (offset & (BLOCK_SIZE - 1));
     int blocksiz;
@@ -136,13 +142,15 @@ int my_write(const char *path, const char *data, size_t sz, off_t offset, struct
         blocksiz = BLOCK_SIZE - blockstart;
         if(blocksiz > remlength)blocksiz = remlength;
         int curblk = locateBlock(&(inodelist[res]), offset);
-        blockstart = 0;
-        remlength -= blocksiz;
-        offset += blocksiz;
         struct Block thisblk;
+        // printf("write: write by send packet: blockstart = %d blocksiz = %d\n",blockstart, blocksiz);
         getBlock(&thisblk, curblk);
         memcpy(thisblk.data + blockstart, data + curptr, blocksiz);
         putBlock(&thisblk, curblk);
+        curptr += blocksiz;
+        blockstart = 0;
+        remlength -= blocksiz;
+        offset += blocksiz;
     }
     updateTimeInode(&(inodelist[res]));
     putBlock(&(inodelist[res].baseblk), inodelist[res].baseblknum);
@@ -156,7 +164,7 @@ int my_fsync(const char *path, int isdatasync, struct fuse_file_info *fi)
     printf("Fuse syscall: fsync: %s\n",path);
     // find inode
     int res = findInode(&(inodelist[ROOTDIR_IDX]), path);
-    printf("find Inode res: %d\n",res);
+    // printf("fsync: find Inode res: %d\n",res);
     if(res < 0)return res;
     if(inodelist[res].type == DIR_INODE_TYPE)return -EISDIR;
     // flush file content
@@ -181,6 +189,7 @@ int my_getattr(const char *path, struct stat *st)
     st->st_ctim = inodelist[res].timec;
     st->st_atim = inodelist[res].timec;
     st->st_mtim = inodelist[res].timec;
+    // printf("getattr: gettime: %ld %ld\n",inodelist[res].timec.tv_sec, inodelist[res].timec.tv_nsec);
     // siz
     st->st_size = inodelist[res].siz;
     return 0;
@@ -191,7 +200,7 @@ int my_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
     if(strlen(path) > PATH_LENGTH_LIMIT)return -ENAMETOOLONG;
     printf("Fuse syscall: readdir: %s\n",path);
     int res = findInode(&(inodelist[ROOTDIR_IDX]), path);
-    printf("find Inode res: %d\n",res);
+    // printf("find Inode res: %d\n",res);
     if(res < 0)return res;
     if(inodelist[res].type != DIR_INODE_TYPE)return -ENOTDIR;
     // add normal files
@@ -207,7 +216,7 @@ int my_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
             char *ptr = (char *)(inodelist[res].indexblk[i].data + (DIRENT_SIZE * 4 * j));
             struct stat stbuf;
             memcpy(newpath + strlen(path), ptr, strlen(ptr) + 1);
-            printf("get dir entry newpath: %s\n", newpath);
+            // printf("get dir entry newpath: %s\n", newpath);
             my_getattr(newpath, &stbuf);
             filler(buf, ptr, &stbuf, 0);
         }
@@ -230,7 +239,7 @@ int my_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
         }
         memset(newpath, 0, sizeof(newpath));
         memcpy(newpath, path, tail);
-        printf("get newpath: %s\n",newpath);
+        // printf("get newpath: %s\n",newpath);
         res = my_getattr(path, &stbuf);
         if(res < 0)return res;
         filler(buf, "..", &stbuf, 0);
@@ -243,7 +252,7 @@ int my_mkdir(const char *path, mode_t md)
     if(strlen(path) > PATH_LENGTH_LIMIT)return -ENAMETOOLONG;
     printf("Fuse syscall: mkdir: %s\n",path);
     int res = findInode(&(inodelist[ROOTDIR_IDX]), path);
-    printf("find Inode res: %d\n",res);
+    // printf("find Inode res: %d\n",res);
     if(res >= 0)return -EEXIST;
     // get new path
     char newpath[2000];
@@ -259,10 +268,10 @@ int my_mkdir(const char *path, mode_t md)
     char name[200];
     memset(name, 0, 200);
     memcpy(name, path + tail + 1, strlen(path) - tail -1);
-    printf("get newpath and name: %s, %s\n",newpath, name);
+    // printf("get newpath and name: %s, %s\n",newpath, name);
     // find new path
     res = findInode(&(inodelist[ROOTDIR_IDX]), newpath);
-    printf("find father Inode res: %d\n",res);
+    // printf("find father Inode res: %d\n",res);
     if(res < 0)return res;
     // add dirent
     if(inodelist[res].type != DIR_INODE_TYPE)return -ENOTDIR;
@@ -289,7 +298,7 @@ int my_chmod(const char *path, mode_t md)
     printf("Fuse syscall: chmod: %s\n",path);
     // find inode
     int res = findInode(&(inodelist[ROOTDIR_IDX]), path);
-    printf("find Inode res: %d\n",res);
+    // printf("find Inode res: %d\n",res);
     if(res < 0)return res;
     // change mode and flush
     updateModeInode(&(inodelist[res]), md);
@@ -304,7 +313,7 @@ int my_rmdir(const char *path)
     if(strlen(path) > PATH_LENGTH_LIMIT)return -ENAMETOOLONG;
     printf("Fuse syscall: rmdir: %s\n",path);
     int res = findInode(&(inodelist[ROOTDIR_IDX]), path);
-    printf("find Inode res: %d\n",res);
+    // printf("find Inode res: %d\n",res);
     if(res < 0)return res;
     if(inodelist[res].type != DIR_INODE_TYPE)return -ENOTDIR;
     int orires = res;
@@ -322,10 +331,10 @@ int my_rmdir(const char *path)
     char name[200];
     memset(name, 0, 200);
     memcpy(name, path + tail + 1, strlen(path) - tail -1);
-    printf("get newpath and name: %s, %s\n",newpath, name);
+    // printf("get newpath and name: %s, %s\n",newpath, name);
     // walk new path
     res = findInode(&(inodelist[ROOTDIR_IDX]), newpath);
-    printf("find father Inode res: %d\n",res);
+    // printf("find father Inode res: %d\n",res);
     if(res < 0)return res;
     if(inodelist[res].type != DIR_INODE_TYPE)return -ENOTDIR;
     // find dirent and remove
@@ -377,7 +386,7 @@ int my_unlink(const char *path)
     if(strlen(path) > PATH_LENGTH_LIMIT)return -ENAMETOOLONG;
     printf("Fuse syscall: unlink: %s\n",path);
     int res = findInode(&(inodelist[ROOTDIR_IDX]), path);
-    printf("find Inode res: %d\n",res);
+    // printf("find Inode res: %d\n",res);
     if(res < 0)return res;
     int desblk = res;
     if(inodelist[res].type != FILE_INODE_TYPE)return -EISDIR;
@@ -395,10 +404,10 @@ int my_unlink(const char *path)
     char name[200];
     memset(name, 0, 200);
     memcpy(name, path + tail + 1, strlen(path) - tail -1);
-    printf("get newpath and name: %s, %s\n",newpath, name);
+    // printf("get newpath and name: %s, %s\n",newpath, name);
     // find dirent and remove
     res = findInode(&(inodelist[ROOTDIR_IDX]), newpath);
-    printf("find father Inode res: %d\n",res);
+    // printf("find father Inode res: %d\n",res);
     if(res < 0)return res;
     if(inodelist[res].type != DIR_INODE_TYPE)return -ENOTDIR;
     bool found = false;
@@ -434,7 +443,7 @@ int my_link(const char *frompath, const char *topath) // from is existed
     printf("Fuse syscall: link: %s, %s\n",frompath, topath);
     // find to frompath inode
     int res = findInode(&(inodelist[ROOTDIR_IDX]), frompath);
-    printf("find Inode res: %d\n",res);
+    // printf("find Inode res: %d\n",res);
     if(res < 0)return res;
     int fromblk = inodelist[res].baseblknum;
     int frommode = inodelist[res].mode;
@@ -456,10 +465,10 @@ int my_link(const char *frompath, const char *topath) // from is existed
     char name[200];
     memset(name, 0, 200);
     memcpy(name, topath + tail + 1, strlen(topath) - tail -1);
-    printf("get newpath and name: %s, %s\n",newpath, name);
+    // printf("get newpath and name: %s, %s\n",newpath, name);
     // find newpath of topath
     res = findInode(&(inodelist[ROOTDIR_IDX]), newpath);
-    printf("find father Inode res: %d\n",res);
+    // printf("find father Inode res: %d\n",res);
     if(res < 0)return res;
     if(inodelist[res].type != DIR_INODE_TYPE)return -ENOTDIR;
     // add dirent

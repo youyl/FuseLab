@@ -35,7 +35,7 @@ int allocBlock()
     flushCache(0);
     putBlock(&(bitmap.indexblk[emptyidx]),emptyidx);
     flushCache(emptyidx);
-    printf("alloc page complete: pageidx = %d  pagenum = %d\n", emptyidx, emptypage);
+    // printf("alloc page complete: pageidx = %d  pagenum = %d\n", emptyidx, emptypage);
     return emptypage;
 }
 
@@ -82,7 +82,7 @@ void inodeInit()
 void updateTimeInode(struct Inode *inode)
 {
     struct timespec curtime;
-    clock_gettime(CLOCK_MONOTONIC, &curtime);
+    clock_gettime(CLOCK_REALTIME, &curtime);
     inode->timec = curtime;
     long *ptr = (long *)(inode->baseblk.data);
     ptr[FILE_TIME_OFFSET] = curtime.tv_sec;
@@ -172,6 +172,7 @@ int searchDir(const struct Inode *inode, const char *name)
         for (int j = 0; j < DIRENT_PER_BLOCK; j++)
         {
             if(getSecondaryDirent(inode, i, j) == 0)continue;
+            // printf("searchdir: %d, %d: %s\n",i,j,(inode->indexblk[i].data + (DIRENT_SIZE * 4 * j)));
             if(strcmp(inode->indexblk[i].data + (DIRENT_SIZE * 4 * j), name) == 0)
             {
                 return getSecondaryDirent(inode, i, j);
@@ -210,6 +211,7 @@ int findInode(const struct Inode *inode, const char *path)
     }
     name[namelen] = 0;
     newpath[newpathlen] = 0;
+    // printf("findinode: newpath split: %s, %s\n",newpath, name);
     // search in Dir
     int res = searchDir(inode, name);
     if(res < 0)return res;
@@ -223,10 +225,12 @@ int findInode(const struct Inode *inode, const char *path)
 int locateBlock(const struct Inode *inode, int offset)
 {
     // get idx count and blk count
+    // printf("locate block: offset = %d\n",offset);
     int blk_count = offset / BLOCK_SIZE;
     int idx_count = blk_count / (BLOCK_SIZE / 4);
     int inner_count = blk_count % (BLOCK_SIZE / 4);
     int res = getSecondaryIndex(inode, idx_count, inner_count);
+    // printf("locate block: located: %d\n", res);
     if(res <= 0)return -ENOENT;
     return res;
 }
@@ -296,6 +300,7 @@ int newBlock(struct Inode *inode)
         inner = 0;
     }
     // new block (res, inner)
+    // printf("new block: pos: %d %d\n",res, inner);
     int tmp = allocBlock();
     if(tmp < 0)return tmp;
     setSecondaryIndex(inode, res, inner, tmp);
@@ -320,6 +325,7 @@ int newDirent(struct Inode *inode, const char *name, int type, int mode, int lin
         link = inodelist[inodecnt].baseblknum;
         inodecnt++;
     }
+    // printf("new dirent: link = %d\n",link);
     int res = -1, inner = -1;
     for (int i = 0; i < SECONDARY_INDEX_COUNT; i++)
     {
@@ -354,10 +360,11 @@ int newDirent(struct Inode *inode, const char *name, int type, int mode, int lin
         inode->blkcnt++;
     }
     // new block (res, inner)
+    // printf("new dirent: pos: %d, %d, %s\n",res,inner,name);
     int *ptr = (int *)(inode->indexblk[res].data);
     ptr[inner * DIRENT_SIZE + DIRENT_BLKNUM_OFFSET] = link;
-    memset(ptr + (inner * DIRENT_SIZE * 4), 0, NAME_LENGTH_LIMIT + 1);
-    memcpy(ptr + (inner * DIRENT_SIZE * 4), name, strlen(name));
+    memset(inode->indexblk[res].data + (inner * DIRENT_SIZE * 4), 0, NAME_LENGTH_LIMIT + 1);
+    memcpy(inode->indexblk[res].data + (inner * DIRENT_SIZE * 4), name, strlen(name));
     putBlock(&(inode->indexblk[res]), inode->indexblkidx[res]);
     flushCache(inode->indexblkidx[res]);
     return 0;
