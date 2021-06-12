@@ -12,6 +12,7 @@ void cacheInit()
         globalcache.dirty[i] = false;
         globalcache.idx[i] = -1;
     }
+    printf("Cache Init Complete\n");
 }
 
 void flushCache(int blk_num)

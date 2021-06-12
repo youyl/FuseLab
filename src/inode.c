@@ -35,6 +35,7 @@ int allocBlock()
     flushCache(0);
     putBlock(&(bitmap.indexblk[emptyidx]),emptyidx);
     flushCache(emptyidx);
+    printf("alloc page complete: pageidx = %d  pagenum = %d\n", emptyidx, emptypage);
     return emptypage;
 }
 
@@ -75,6 +76,7 @@ void inodeInit()
     inodecnt = 1;
     if(controller.created)createInode(&(inodelist[ROOTDIR_IDX]), DIR_INODE_TYPE, 0755);
     else retrieveInode(&(inodelist[ROOTDIR_IDX]), ROOTDIR_BLK);
+    printf("Inode Init Complete\n");
 }
 
 void updateTimeInode(struct Inode *inode)
@@ -121,12 +123,22 @@ void retrieveInode(struct Inode *inode, int blk_num)
     inode->type = ptr[FILE_TYPE_OFFSET];
     inode->mode = ptr[FILE_MODE_OFFSET];
     inode->siz = ptr[FILE_SIZE_OFFSET];
+    inode->nlink = ptr[FILE_NLINK_OFFSET];
+    inode->blkcnt = 0;
     // get idx
+    memset(inode->indexblkidx, 0, SECONDARY_INDEX_COUNT * 4);
     for (int i = 0; i < SECONDARY_INDEX_COUNT; i++)
     {
         inode->indexblkidx[i] = getIndex(inode, i);
-        getBlock(&(inode->indexblk[i]), inode->indexblkidx[i]);
+        if(inode->indexblkidx[i] != 0)getBlock(&(inode->indexblk[i]), inode->indexblkidx[i]);
+        else continue;
+        for (int j = 0; j < BLOCK_SIZE / 4; j++)
+        {
+            int tmp = getSecondaryIndex(inode, i, j);
+            if(tmp != 0)inode->blkcnt++;
+        }
     }
+    if(inode->type == DIR_INODE_TYPE)inode->blkcnt = 0;
 }
 
 // wrapped retrieve, check duplicated
@@ -282,7 +294,6 @@ int newBlock(struct Inode *inode)
         setIndex(inode, res + 1, val);
         res++;
         inner = 0;
-        inode->blkcnt++;
     }
     // new block (res, inner)
     int tmp = allocBlock();
@@ -309,21 +320,22 @@ int newDirent(struct Inode *inode, const char *name, int type, int mode, int lin
         link = inodelist[inodecnt].baseblknum;
         inodecnt++;
     }
-    int res = -1;
+    int res = -1, inner = -1;
     for (int i = 0; i < SECONDARY_INDEX_COUNT; i++)
     {
-        if(inode->indexblkidx[i] != 0)res = i;
-    }
-    int inner = -1;
-    if(res != -1)
-    {
-        for (int i = 0; i < DIRENT_PER_BLOCK; i++)
+        if(inode->indexblkidx[i] != 0)
         {
-            if(getSecondaryDirent(inode, res, i) == 0)
+            res = i;
+            for (int j = 0; j < DIRENT_PER_BLOCK; j++)
             {
-                inner = i;
-                break;
+                if(getSecondaryDirent(inode, i, j) == 0)
+                {
+                    inner = j;
+                    res = i;
+                    break;
+                }
             }
+            if(inner != -1)break;
         }
     }
     if(inner == -1 && res == SECONDARY_INDEX_COUNT - 1)return -ENOSPC;
@@ -344,8 +356,8 @@ int newDirent(struct Inode *inode, const char *name, int type, int mode, int lin
     // new block (res, inner)
     int *ptr = (int *)(inode->indexblk[res].data);
     ptr[inner * DIRENT_SIZE + DIRENT_BLKNUM_OFFSET] = link;
-    memset(ptr + (inner * DIRENT_SIZE), 0, NAME_LENGTH_LIMIT + 1);
-    memcpy(ptr + (inner * DIRENT_SIZE), name, strlen(name));
+    memset(ptr + (inner * DIRENT_SIZE * 4), 0, NAME_LENGTH_LIMIT + 1);
+    memcpy(ptr + (inner * DIRENT_SIZE * 4), name, strlen(name));
     putBlock(&(inode->indexblk[res]), inode->indexblkidx[res]);
     flushCache(inode->indexblkidx[res]);
     return 0;
@@ -369,18 +381,18 @@ void flushInode(const struct Inode *inode)
 void releaseInode(int inodeidx)
 {
     flushInode(&(inodelist[inodeidx]));
+    releaseBlock(inodelist[inodeidx].baseblknum);
     for (int i = 0; i < SECONDARY_INDEX_COUNT; i++)
     {
         if(inodelist[inodeidx].indexblkidx[i] == 0)continue;
+        releaseBlock(inodelist[inodeidx].indexblkidx[i]);
         for (int j = 0; j < BLOCK_SIZE / 4; j++)
         {
             int res = getSecondaryIndex(&(inodelist[inodeidx]), i, j);
             if(res == 0)continue;
             releaseBlock(res);
         }
-        releaseBlock(inodelist[inodeidx].indexblkidx[i]);
     }
-    releaseBlock(inodelist[inodeidx].baseblknum);
     inodelist[inodeidx].baseblknum = 0;
 }
 

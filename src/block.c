@@ -51,6 +51,7 @@ void controllerInit(char *path)
     if(ptr == MAP_FAILED)reportError("mmap failed");
     if(controller.created)memset(ptr, 0, BLOCK_SIZE * MAX_BLOCK_NUM);
     controller.data = ptr;
+    printf("Block Controller Init Complete\n");
 }
 
 void readBlock(char *blk, int blk_num)
