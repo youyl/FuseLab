@@ -96,6 +96,9 @@ int my_read(const char *path, char *buf, size_t sz, off_t offset, struct fuse_fi
         getBlock(&thisblk, curblk);
         memcpy(buf + curptr, thisblk.data + blockstart, blocksiz);
     }
+    updateTimeInode(&(inodelist[res]));
+    putBlock(&(inodelist[res].baseblk), inodelist[res].baseblknum);
+    flushCache(inodelist[res].baseblknum);
     return sz;
 }
 
@@ -141,6 +144,9 @@ int my_write(const char *path, const char *data, size_t sz, off_t offset, struct
         memcpy(thisblk.data + blockstart, data + curptr, blocksiz);
         putBlock(&thisblk, curblk);
     }
+    updateTimeInode(&(inodelist[res]));
+    putBlock(&(inodelist[res].baseblk), inodelist[res].baseblknum);
+    flushCache(inodelist[res].baseblknum);
     return sz;
 }
 
@@ -201,7 +207,7 @@ int my_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
             char *ptr = (char *)(inodelist[res].indexblk[i].data + (DIRENT_SIZE * 4 * j));
             struct stat stbuf;
             memcpy(newpath + strlen(path), ptr, strlen(ptr) + 1);
-            printf("get dir entry newpath: %d\n", newpath);
+            printf("get dir entry newpath: %s\n", newpath);
             my_getattr(newpath, &stbuf);
             filler(buf, ptr, &stbuf, 0);
         }
@@ -287,6 +293,7 @@ int my_chmod(const char *path, mode_t md)
     if(res < 0)return res;
     // change mode and flush
     updateModeInode(&(inodelist[res]), md);
+    updateTimeInode(&(inodelist[res]));
     putBlock(&(inodelist[res].baseblk), inodelist[res].baseblknum);
     flushCache(inodelist[res].baseblknum);
     return 0;
